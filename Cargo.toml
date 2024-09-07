@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "quick-protobuf",
+    "pb-rs",
+]
