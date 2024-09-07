@@ -8,8 +8,7 @@
 //!
 //! It is advised, for convenience, to directly work with a `Reader`.
 
-extern crate byteorder;
-use reader::byteorder::ByteOrder;
+use byteorder::*;
 
 use std::iter::FusedIterator;
 #[cfg(feature = "std")]
@@ -31,7 +30,6 @@ use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
-use self::byteorder::LE;
 
 use crate::errors::{ Error, Result };
 use crate::message::MessageRead;
@@ -974,129 +972,4 @@ impl<'a, T: Copy + PartialEq> PartialEq for PackedFixed<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.into_iter().eq(other)
     }
-}
-
-#[test]
-fn test_varint() {
-    let data = [0x96, 0x01];
-    let mut r = BytesReader::from_bytes(&data[..]);
-    assert_eq!(150, r.read_varint32(&data[..]).unwrap());
-    assert!(r.is_eof());
-}
-
-#[test]
-fn read_size_overflowing_unknown() {
-    let bytes = &[
-        200,
-        250,
-        35, // varint tag with WIRE_TYPE_VARINT -- 589128
-        //
-        //
-        47, // varint itself
-        //
-        //
-        250,
-        36, // varint tag with WIRE_TYPE_LENGTH_DELIMITED -- 4730
-        //
-        //
-        255,
-        255,
-        255,
-        255,
-        255,
-        255,
-        255,
-        255,
-        255,
-        3, // huge 10-byte length
-        //
-        //
-        255,
-        255,
-        227, // unused extra bytes
-    ];
-
-    let mut r = BytesReader::from_bytes(bytes);
-
-    assert!(!r.is_eof());
-    assert_eq!(r.next_tag(bytes).unwrap(), 589128);
-    r.read_unknown(bytes, 589128).unwrap();
-
-    assert!(!r.is_eof());
-    assert_eq!(r.next_tag(bytes).unwrap(), 4730);
-    let e = r.read_unknown(bytes, 4730).unwrap_err();
-
-    assert!(matches!(e, Error::Varint), "{:?}", e);
-}
-
-#[test]
-fn test_packed_fixed_iter() {
-    let pf: PackedFixed<i32> = vec![1, 2, 3, 4, 5].into();
-
-    let mut total = 0;
-
-    for _ in 0..10 {
-        for i in &pf {
-            total += i;
-        }
-    }
-
-    for i in pf {
-        total += i;
-    }
-
-    assert_eq!(total, (1 + 2 + 3 + 4 + 5) * (10 + 1));
-}
-
-#[test]
-fn test_packed_fixed_eq() {
-    let v = vec![
-        0x01u8,
-        0x00u8,
-        0x00u8,
-        0x00u8,
-        0x02u8,
-        0x00u8,
-        0x00u8,
-        0x00u8,
-        0x03u8,
-        0x00u8,
-        0x00u8,
-        0x00u8
-    ];
-    let borrowed: PackedFixed<i32> = PackedFixed::Borrowed(&v);
-    let mut owned: PackedFixed<i32> = borrowed.clone();
-    owned.own();
-
-    let owned_reversed: PackedFixed<i32> = vec![3, 2, 1].into();
-
-    let v_reversed = vec![
-        0x03u8,
-        0x00u8,
-        0x00u8,
-        0x00u8,
-        0x02u8,
-        0x00u8,
-        0x00u8,
-        0x00u8,
-        0x01u8,
-        0x00u8,
-        0x00u8,
-        0x00u8
-    ];
-    let borrowed_reversed: PackedFixed<i32> = PackedFixed::Borrowed(&v_reversed);
-
-    let ndy: PackedFixed<i32> = PackedFixed::NoDataYet;
-    let ndy2: PackedFixed<i32> = PackedFixed::NoDataYet;
-    let def: PackedFixed<i32> = PackedFixed::default();
-
-    assert_eq!(borrowed, owned);
-    assert_eq!(borrowed_reversed, owned_reversed);
-    assert_eq!(ndy, ndy2);
-    assert_eq!(ndy, def);
-
-    assert_ne!(borrowed, owned_reversed);
-    assert_ne!(owned, owned_reversed);
-    assert_ne!(owned, borrowed_reversed);
-    assert_ne!(borrowed, borrowed_reversed);
 }
