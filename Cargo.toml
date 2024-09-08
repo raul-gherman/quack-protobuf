@@ -1,7 +1,7 @@
 [package]
 name = "quack-protobuf"
 description = "A pure Rust protobuf (de)serializer. Quack :)"
-version = "0.1.20240907"
+version = "0.1.20240908"
 edition="2021"
 
 [dependencies]

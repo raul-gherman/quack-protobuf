@@ -32,7 +32,7 @@ use self::byteorder::WriteBytesExt;
 /// }
 ///
 /// // FooBar is a message generated from a proto file
-/// // in parcicular it contains a `write_message` function
+/// // in particular it contains a `write_message` function
 /// use foo_bar::{FooBar, Foo, Bar};
 /// use std::borrow::Cow;
 /// use quick_protobuf::Writer;
