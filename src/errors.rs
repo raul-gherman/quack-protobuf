@@ -36,7 +36,10 @@ impl From<Error> for std::io::Error {
     fn from(val: Error) -> Self {
         match val {
             Error::Io(x) => x,
-            Error::Utf8(x) => std::io::Error::new(std::io::ErrorKind::InvalidData, x),
+            Error::Utf8(x) => std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                x,
+            ),
             x => std::io::Error::new(std::io::ErrorKind::Other, x),
         }
     }
@@ -67,21 +70,40 @@ impl std::error::Error for Error {
 }
 
 impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut core::fmt::Formatter,
+    ) -> core::fmt::Result {
         match self {
             #[cfg(feature = "std")]
             Error::Io(e) => write!(f, "{}", e),
             #[cfg(not(feature = "std"))]
             Error::Io => write!(f, "IO error"),
             Error::Utf8(e) => write!(f, "{}", e),
-            Error::Deprecated(feature) => write!(f, "Feature '{}' has been deprecated", feature),
+            Error::Deprecated(feature) => write!(
+                f,
+                "Feature '{}' has been deprecated",
+                feature
+            ),
             Error::UnknownWireType(e) => {
-                write!(f, "Unknown wire type '{}', must be less than 6", e)
+                write!(
+                    f,
+                    "Unknown wire type '{}', must be less than 6",
+                    e
+                )
             }
             Error::Varint => write!(f, "Cannot decode varint"),
             #[cfg(feature = "std")]
-            Error::Message(msg) => write!(f, "Error while parsing message: {}", msg),
-            Error::Map(tag) => write!(f, "Unexpected map tag: '{}', expecting 1 or 2", tag),
+            Error::Message(msg) => write!(
+                f,
+                "Error while parsing message: {}",
+                msg
+            ),
+            Error::Map(tag) => write!(
+                f,
+                "Unexpected map tag: '{}', expecting 1 or 2",
+                tag
+            ),
             Error::UnexpectedEndOfBuffer => write!(f, "Unexpected end of buffer"),
             Error::OutputBufferTooSmall => write!(f, "Output buffer too small"),
         }
