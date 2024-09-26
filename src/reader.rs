@@ -808,13 +808,13 @@ impl Reader {
 }
 
 /// Deserialize a `MessageRead from a `&[u8]`
-pub fn deserialize_from_slice<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+pub fn deserialize_from_slice_with_len_prefix<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
     let mut reader = BytesReader::from_bytes(bytes);
     reader.read_message::<M>(bytes)
 }
 
 /// Deserialize a `MessageRead from a `&[u8]` without a length prefix
-pub fn deserialize_from_slice_without_len<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+pub fn deserialize_from_slice<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
     let mut reader = BytesReader::from_bytes(&bytes);
     reader.read_message_without_len::<M>(&bytes)
 }

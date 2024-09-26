@@ -15,10 +15,10 @@ pub mod writer;
 pub use crate::errors::{Error, Result};
 pub use crate::message::{MessageInfo, MessageRead, MessageWrite};
 pub use crate::reader::{
-    deserialize_from_slice, deserialize_from_slice_without_len, BytesReader, PackedFixed, PackedFixedIntoIter,
+    deserialize_from_slice_with_len_prefix, deserialize_from_slice, BytesReader, PackedFixed, PackedFixedIntoIter,
     PackedFixedRefIter,
 };
-pub use crate::writer::{serialize_into_slice, serialize_into_slice_without_len, BytesWriter, Writer, WriterBackend};
+pub use crate::writer::{serialize_into_slice_with_len_prefix, serialize_into_slice, BytesWriter, Writer, WriterBackend};
 
 #[cfg(feature = "std")]
 pub use crate::reader::Reader;

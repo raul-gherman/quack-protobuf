@@ -14,7 +14,7 @@ license = "MIT"
 name = "quack-protobuf"
 readme = "README.md"
 repository = "https://github.com/raul-gherman/quack-protobuf"
-version = "0.1.20240920"
+version = "0.2.20240926"
 
 [dependencies]
 byteorder = { version = "1.5.0", default-features = false }

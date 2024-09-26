@@ -287,7 +287,7 @@ impl<W: WriterBackend> Writer<W> {
 
     /// Writes a message which implements `MessageWrite`
     #[cfg_attr(feature = "std", inline)]
-    pub fn write_message<M: MessageWrite>(
+    pub fn write_message_with_len_prefix<M: MessageWrite>(
         &mut self,
         m: &M,
     ) -> Result<()> {
@@ -298,7 +298,7 @@ impl<W: WriterBackend> Writer<W> {
 
     /// Writes a message which implements `MessageWrite` without adding the length prefix
     #[cfg_attr(feature = "std", inline)]
-    pub fn write_message_without_len<M: MessageWrite>(
+    pub fn write_message<M: MessageWrite>(
         &mut self,
         m: &M,
     ) -> Result<()> {
@@ -421,13 +421,13 @@ pub fn serialize_into_vec<M: MessageWrite>(message: &M) -> Result<Vec<u8>> {
     ));
     {
         let mut writer = Writer::new(&mut v);
-        writer.write_message(message)?;
+        writer.write_message_with_len_prefix(message)?;
     }
     Ok(v)
 }
 
 /// Serialize a `MessageWrite` into a byte slice
-pub fn serialize_into_slice<M: MessageWrite>(
+pub fn serialize_into_slice_with_len_prefix<M: MessageWrite>(
     message: &M,
     out: &mut [u8],
 ) -> Result<()> {
@@ -437,14 +437,14 @@ pub fn serialize_into_slice<M: MessageWrite>(
     }
     {
         let mut writer = Writer::new(BytesWriter::new(out));
-        writer.write_message(message)?;
+        writer.write_message_with_len_prefix(message)?;
     }
 
     Ok(())
 }
 
 /// Serialize a `MessageWrite` into a byte slice without a length prefix
-pub fn serialize_into_slice_without_len<M: MessageWrite>(
+pub fn serialize_into_slice<M: MessageWrite>(
     message: &M,
     out: &mut [u8],
 ) -> Result<usize> {
@@ -454,7 +454,7 @@ pub fn serialize_into_slice_without_len<M: MessageWrite>(
     }
     {
         let mut writer = Writer::new(BytesWriter::new(out));
-        writer.write_message_without_len(message)?;
+        writer.write_message(message)?;
     }
 
     Ok(len)
@@ -768,17 +768,17 @@ fn test_issue_222() {
     let mut buf_len_4 = vec![0x00u8, 0x00u8, 0x00u8, 0x00u8];
 
     assert!(matches!(
-        serialize_into_slice(&msg, buf_len_2.as_mut_slice()),
+        serialize_into_slice_with_len_prefix(&msg, buf_len_2.as_mut_slice()),
         Err(Error::OutputBufferTooSmall)
     ));
     assert!(matches!(
         // the salient case in issue 222; before bugfix this would have been
         // Err(Error::UnexpectedEndOfBuffer)
-        serialize_into_slice(&msg, buf_len_3.as_mut_slice()),
+        serialize_into_slice_with_len_prefix(&msg, buf_len_3.as_mut_slice()),
         Err(Error::OutputBufferTooSmall)
     ));
     assert!(matches!(
-        serialize_into_slice(&msg, buf_len_4.as_mut_slice()),
+        serialize_into_slice_with_len_prefix(&msg, buf_len_4.as_mut_slice()),
         Ok(())
     ));
 }
