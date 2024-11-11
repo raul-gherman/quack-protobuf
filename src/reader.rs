@@ -118,7 +118,9 @@ impl BytesReader {
         &mut self,
         bytes: &[u8],
     ) -> Result<u8> {
-        let b = bytes.get(self.start).ok_or(Error::UnexpectedEndOfBuffer)?;
+        let b = bytes
+            .get(self.start)
+            .ok_or(Error::UnexpectedEndOfBuffer)?;
         self.start += 1;
         Ok(*b)
     }
@@ -489,7 +491,8 @@ impl BytesReader {
         bytes: &'a [u8],
     ) -> Result<&'a [u8]> {
         self.read_len_varint(bytes, |r, b| {
-            b.get(r.start..r.end).ok_or(Error::UnexpectedEndOfBuffer)
+            b.get(r.start..r.end)
+                .ok_or(Error::UnexpectedEndOfBuffer)
         })
     }
 

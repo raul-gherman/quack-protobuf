@@ -77,7 +77,8 @@ impl<W: WriterBackend> Writer<W> {
         mut v: u64,
     ) -> Result<()> {
         while v > 0x7f {
-            self.inner.pb_write_u8(((v as u8) & 0x7f) | 0x80)?;
+            self.inner
+                .pb_write_u8(((v as u8) & 0x7f) | 0x80)?;
             v >>= 7;
         }
         self.inner.pb_write_u8(v as u8)
