@@ -1,38 +1,8 @@
-//! A module to manage protobuf deserialization
-//!
-//! There are actually two main *readers*
-//! - a `BytesReader` which parses data from a `&[u8]`
-//! - a `Reader` which is a wrapper on `BytesReader` which has its own buffer.
-//!
-//! It provides convenient functions to the user such as `from_file`
-//!
-//! It is advised, for convenience, to directly work with a `Reader`.
-
-#[cfg(feature = "std")]
-use std::borrow::ToOwned;
-#[cfg(feature = "std")]
-use std::fs::File;
-#[cfg(feature = "std")]
-use std::io::Read;
-use std::iter::FusedIterator;
-#[cfg(feature = "std")]
-use std::path::Path;
-
-use std::convert::TryFrom;
-
-#[cfg(not(feature = "std"))]
-extern crate alloc;
-#[cfg(not(feature = "std"))]
-use alloc::borrow::Cow;
-#[cfg(not(feature = "std"))]
-use alloc::borrow::ToOwned;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-use byteorder_lite::ByteOrder;
-use byteorder_lite::LE;
-
 use crate::errors::{Error, Result};
 use crate::message::MessageRead;
+use byteorder_lite::ByteOrder;
+use byteorder_lite::LE;
+use std::convert::TryFrom;
 
 const WIRE_TYPE_VARINT: u8 = 0;
 const WIRE_TYPE_FIXED64: u8 = 1;
@@ -42,9 +12,6 @@ const WIRE_TYPE_END_GROUP: u8 = 4;
 const WIRE_TYPE_FIXED32: u8 = 5;
 
 /// A struct to read protocol binary files
-///
-/// # Examples
-///
 /// ```rust
 /// # mod foo_bar {
 /// #     use quick_protobuf::{MessageRead, BytesReader, Result};
@@ -57,36 +24,16 @@ const WIRE_TYPE_FIXED32: u8 = 5;
 /// #         }
 /// #     }
 /// # }
-///
-/// // FooBar is a message generated from a proto file
-/// // in parcicular it contains a `from_reader` function
-/// use foo_bar::FooBar;
-/// use quick_protobuf::{BytesReader, MessageRead};
-///
-/// fn main() {
-///     // bytes is a buffer on the data we want to deserialize
+///   ...
+///     // bytes is a buffer on the data we want to deserialize;
 ///     // typically bytes is read from a `Read`:
 ///     // r.read_to_end(&mut bytes).expect("cannot read bytes");
 ///     let mut bytes: Vec<u8>;
-///     # bytes = vec![];
-///
 ///     // we can build a bytes reader directly out of the bytes
 ///     let mut reader = BytesReader::from_bytes(&bytes);
 ///
 ///     // now using the generated module decoding is as easy as:
 ///     let foobar = FooBar::from_reader(&mut reader, &bytes).expect("Cannot read FooBar");
-///
-///     // if instead the buffer contains a length delimited stream of message we could use:
-///     // while !r.is_eof() {
-///     //     let foobar: FooBar = r.read_message(&bytes).expect(...);
-///     //     ...
-///     // }
-///     println!(
-///         "Found {} foos and {} bars",
-///         foobar.foos.len(),
-///         foobar.bars.len()
-///     );
-/// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BytesReader {
@@ -105,32 +52,21 @@ impl BytesReader {
 
     /// Reads next tag, `None` if all bytes have been read
     #[cfg_attr(feature = "std", inline(always))]
-    pub fn next_tag(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u32> {
+    pub fn next_tag(&mut self, bytes: &[u8]) -> Result<u32> {
         self.read_varint32(bytes)
     }
 
     /// Reads the next byte
     #[cfg_attr(feature = "std", inline(always))]
-    pub fn read_u8(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u8> {
-        let b = bytes
-            .get(self.start)
-            .ok_or(Error::UnexpectedEndOfBuffer)?;
+    pub fn read_u8(&mut self, bytes: &[u8]) -> Result<u8> {
+        let b = bytes.get(self.start).ok_or(Error::UnexpectedEndOfBuffer)?;
         self.start += 1;
         Ok(*b)
     }
 
     /// Reads the next varint encoded u64
     #[cfg_attr(feature = "std", inline(always))]
-    pub fn read_varint32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u32> {
+    pub fn read_varint32(&mut self, bytes: &[u8]) -> Result<u32> {
         let mut b = self.read_u8(bytes)?; // byte0
         if (b & 0x80) == 0 {
             return Ok(b as u32);
@@ -218,10 +154,7 @@ impl BytesReader {
 
     /// Reads the next varint encoded u64
     #[cfg_attr(feature = "std", inline(always))]
-    pub fn read_varint64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u64> {
+    pub fn read_varint64(&mut self, bytes: &[u8]) -> Result<u64> {
         // part0
         let mut b = self.read_u8(bytes)?;
         if (b & 0x80) == 0 {
@@ -306,46 +239,31 @@ impl BytesReader {
 
     /// Reads int32 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_int32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i32> {
+    pub fn read_int32(&mut self, bytes: &[u8]) -> Result<i32> {
         self.read_varint32(bytes).map(|i| i as i32)
     }
 
     /// Reads int64 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_int64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i64> {
+    pub fn read_int64(&mut self, bytes: &[u8]) -> Result<i64> {
         self.read_varint64(bytes).map(|i| i as i64)
     }
 
     /// Reads uint32 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_uint32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u32> {
+    pub fn read_uint32(&mut self, bytes: &[u8]) -> Result<u32> {
         self.read_varint32(bytes)
     }
 
     /// Reads uint64 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_uint64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u64> {
+    pub fn read_uint64(&mut self, bytes: &[u8]) -> Result<u64> {
         self.read_varint64(bytes)
     }
 
     /// Reads sint32 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_sint32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i32> {
+    pub fn read_sint32(&mut self, bytes: &[u8]) -> Result<i32> {
         // zigzag
         let n = self.read_varint32(bytes)?;
         Ok(((n >> 1) as i32) ^ -((n & 1) as i32))
@@ -353,10 +271,7 @@ impl BytesReader {
 
     /// Reads sint64 (varint)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_sint64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i64> {
+    pub fn read_sint64(&mut self, bytes: &[u8]) -> Result<i64> {
         // zigzag
         let n = self.read_varint64(bytes)?;
         Ok(((n >> 1) as i64) ^ -((n & 1) as i64))
@@ -364,12 +279,7 @@ impl BytesReader {
 
     /// Reads fixed64 (little endian u64)
     #[cfg_attr(feature = "std", inline)]
-    fn read_fixed<M, F: Fn(&[u8]) -> M>(
-        &mut self,
-        bytes: &[u8],
-        len: usize,
-        read: F,
-    ) -> Result<M> {
+    fn read_fixed<M, F: Fn(&[u8]) -> M>(&mut self, bytes: &[u8], len: usize, read: F) -> Result<M> {
         let v = read(
             bytes
                 .get(self.start..self.start + len)
@@ -381,83 +291,55 @@ impl BytesReader {
 
     /// Reads fixed64 (little endian u64)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_fixed64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u64> {
+    pub fn read_fixed64(&mut self, bytes: &[u8]) -> Result<u64> {
         self.read_fixed(bytes, 8, LE::read_u64)
     }
 
     /// Reads fixed32 (little endian u32)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_fixed32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<u32> {
+    pub fn read_fixed32(&mut self, bytes: &[u8]) -> Result<u32> {
         self.read_fixed(bytes, 4, LE::read_u32)
     }
 
     /// Reads sfixed64 (little endian i64)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_sfixed64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i64> {
+    pub fn read_sfixed64(&mut self, bytes: &[u8]) -> Result<i64> {
         self.read_fixed(bytes, 8, LE::read_i64)
     }
 
     /// Reads sfixed32 (little endian i32)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_sfixed32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<i32> {
+    pub fn read_sfixed32(&mut self, bytes: &[u8]) -> Result<i32> {
         self.read_fixed(bytes, 4, LE::read_i32)
     }
 
     /// Reads float (little endian f32)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_float(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<f32> {
+    pub fn read_float(&mut self, bytes: &[u8]) -> Result<f32> {
         self.read_fixed(bytes, 4, LE::read_f32)
     }
 
     /// Reads double (little endian f64)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_double(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<f64> {
+    pub fn read_double(&mut self, bytes: &[u8]) -> Result<f64> {
         self.read_fixed(bytes, 8, LE::read_f64)
     }
 
     /// Reads bool (varint, check if == 0)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_bool(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<bool> {
+    pub fn read_bool(&mut self, bytes: &[u8]) -> Result<bool> {
         self.read_varint32(bytes).map(|i| i != 0)
     }
 
     /// Reads enum, encoded as i32
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_enum<E: From<i32>>(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<E> {
+    pub fn read_enum<E: From<i32>>(&mut self, bytes: &[u8]) -> Result<E> {
         self.read_int32(bytes).map(|e| e.into())
     }
 
     /// First reads a varint and use it as size to read a generic object
     #[cfg_attr(feature = "std", inline(always))]
-    fn read_len_varint<'a, M, F>(
-        &mut self,
-        bytes: &'a [u8],
-        read: F,
-    ) -> Result<M>
+    fn read_len_varint<'a, M, F>(&mut self, bytes: &'a [u8], read: F) -> Result<M>
     where
         F: FnMut(&mut BytesReader, &'a [u8]) -> Result<M>,
     {
@@ -467,12 +349,7 @@ impl BytesReader {
 
     /// Reads a certain number of bytes specified by len
     #[cfg_attr(feature = "std", inline(always))]
-    fn read_len<'a, M, F>(
-        &mut self,
-        bytes: &'a [u8],
-        mut read: F,
-        len: usize,
-    ) -> Result<M>
+    fn read_len<'a, M, F>(&mut self, bytes: &'a [u8], mut read: F, len: usize) -> Result<M>
     where
         F: FnMut(&mut BytesReader, &'a [u8]) -> Result<M>,
     {
@@ -486,22 +363,15 @@ impl BytesReader {
 
     /// Reads bytes (Vec<u8>)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_bytes<'a>(
-        &mut self,
-        bytes: &'a [u8],
-    ) -> Result<&'a [u8]> {
+    pub fn read_bytes<'a>(&mut self, bytes: &'a [u8]) -> Result<&'a [u8]> {
         self.read_len_varint(bytes, |r, b| {
-            b.get(r.start..r.end)
-                .ok_or(Error::UnexpectedEndOfBuffer)
+            b.get(r.start..r.end).ok_or(Error::UnexpectedEndOfBuffer)
         })
     }
 
     /// Reads string (String)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_string<'a>(
-        &mut self,
-        bytes: &'a [u8],
-    ) -> Result<&'a str> {
+    pub fn read_string<'a>(&mut self, bytes: &'a [u8]) -> Result<&'a str> {
         self.read_len_varint(bytes, |r, b| {
             b.get(r.start..r.end)
                 .ok_or(Error::UnexpectedEndOfBuffer)
@@ -509,62 +379,29 @@ impl BytesReader {
         })
     }
 
-    /// Reads packed repeated field (Vec<M>)
-    ///
-    /// Note: packed fields are stored as a variable length chunk of data,
-    /// while regular repeated fields behave like an iterator, yielding their tag everytime
-    #[cfg_attr(feature = "std", inline)]
-    pub fn read_packed<'a, M, F>(
-        &mut self,
-        bytes: &'a [u8],
-        mut read: F,
-    ) -> Result<Vec<M>>
-    where
-        F: FnMut(&mut BytesReader, &'a [u8]) -> Result<M>,
-    {
-        self.read_len_varint(bytes, |r, b| {
-            let mut v = Vec::new();
-            while !r.is_eof() {
-                v.push(read(r, b)?);
-            }
-            Ok(v)
-        })
-    }
-
-    /// Reads packed repeated field where M can directly be transmutted from raw bytes
-    ///
-    /// Note: packed fields are stored as a variable length chunk of data,
-    /// while regular repeated fields behave like an iterator, yielding their tag everytime
-    #[cfg_attr(feature = "std", inline)]
-    pub fn read_packed_fixed<'a, M: Copy + PartialEq>(
-        &mut self,
-        bytes: &'a [u8],
-    ) -> Result<PackedFixed<'a, M>>
-    where
-        [M]: ToOwned,
-    {
-        let len = self.read_varint32(bytes)? as usize;
-        if self.len() < len {
-            return Err(Error::UnexpectedEndOfBuffer);
-        }
-
-        // Note the floor divide; we rely on this to guarantee
-        // correctness in the rest of this function
-        let n = len / ::std::mem::size_of::<M>();
-        let target = &bytes[self.start..self.start + n * ::std::mem::size_of::<M>()];
-
-        self.start += len;
-        Ok(PackedFixed::from(target))
-    }
+    // /// Reads packed repeated field (Vec<M>)
+    // ///
+    // /// Note: packed fields are stored as a variable length chunk of data,
+    // /// while regular repeated fields behave like an iterator, yielding their tag everytime
+    // #[cfg_attr(feature = "std", inline)]
+    // pub fn read_packed<'a, M, F>(&mut self, bytes: &'a [u8], mut read: F) -> Result<Vec<M>>
+    // where
+    //     F: FnMut(&mut BytesReader, &'a [u8]) -> Result<M>,
+    // {
+    //     self.read_len_varint(bytes, |r, b| {
+    //         let mut v = Vec::new();
+    //         while !r.is_eof() {
+    //             v.push(read(r, b)?);
+    //         }
+    //         Ok(v)
+    //     })
+    // }
 
     /// Reads a nested message
     ///
     /// First reads a varint and interprets it as the length of the message
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_message<'a, M>(
-        &mut self,
-        bytes: &'a [u8],
-    ) -> Result<M>
+    pub fn read_message<'a, M>(&mut self, bytes: &'a [u8]) -> Result<M>
     where
         M: MessageRead<'a>,
     {
@@ -575,10 +412,7 @@ impl BytesReader {
     ///
     /// The length is computed from the size of the message `bytes`
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_message_without_len<'a, M>(
-        &mut self,
-        bytes: &'a [u8],
-    ) -> Result<M>
+    pub fn read_message_without_len<'a, M>(&mut self, bytes: &'a [u8]) -> Result<M>
     where
         M: MessageRead<'a>,
     {
@@ -590,11 +424,7 @@ impl BytesReader {
     /// Reads just the message and does not try to read it's size first.
     ///  * 'len' - The length of the message to be read.
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_message_by_len<'a, M>(
-        &mut self,
-        bytes: &'a [u8],
-        len: usize,
-    ) -> Result<M>
+    pub fn read_message_by_len<'a, M>(&mut self, bytes: &'a [u8], len: usize) -> Result<M>
     where
         M: MessageRead<'a>,
     {
@@ -638,11 +468,7 @@ impl BytesReader {
 
     /// Reads unknown data, based on its tag value (which itself gives us the wire_type value)
     #[cfg_attr(feature = "std", inline)]
-    pub fn read_unknown(
-        &mut self,
-        bytes: &[u8],
-        tag_value: u32,
-    ) -> Result<()> {
+    pub fn read_unknown(&mut self, bytes: &[u8], tag_value: u32) -> Result<()> {
         // Since `read.varint64()` calls `read_u8()`, which increments
         // `self.start`, we don't need to manually increment `self.start` in
         // control flows that either call `read_varint64()` or error out.
@@ -653,7 +479,9 @@ impl BytesReader {
             }
             WIRE_TYPE_FIXED64 => 8,
             WIRE_TYPE_FIXED32 => 4,
-            WIRE_TYPE_LENGTH_DELIMITED => usize::try_from(self.read_varint64(bytes)?).map_err(|_| Error::Varint)?,
+            WIRE_TYPE_LENGTH_DELIMITED => {
+                usize::try_from(self.read_varint64(bytes)?).map_err(|_| Error::Varint)?
+            }
             WIRE_TYPE_START_GROUP | WIRE_TYPE_END_GROUP => {
                 return Err(Error::Deprecated("group"));
             }
@@ -692,402 +520,8 @@ impl BytesReader {
     }
 }
 
-/// A struct to read protobuf data
-///
-/// Contrary to `BytesReader`, this struct will own a buffer
-///
-/// # Examples
-///
-/// ```rust,should_panic
-/// # mod foo_bar {
-/// #     use quick_protobuf::{MessageRead, BytesReader, Result};
-/// #     pub struct Foo {}
-/// #     pub struct Bar {}
-/// #     pub struct FooBar { pub foos: Vec<Foo>, pub bars: Vec<Bar>, }
-/// #     impl<'a> MessageRead<'a> for FooBar {
-/// #         fn from_reader(_: &mut BytesReader, _: &[u8]) -> Result<Self> {
-/// #              Ok(FooBar { foos: vec![], bars: vec![] })
-/// #         }
-/// #     }
-/// # }
-///
-/// // FooBar is a message generated from a proto file
-/// // In particular it implements the `MessageRead` trait, containing a `from_reader` function.
-/// use foo_bar::FooBar;
-/// use quick_protobuf::Reader;
-///
-/// fn main() {
-///     // create a reader, which will parse the protobuf binary file and pop events
-///     // this reader will read the entire file into an internal buffer
-///     let mut reader =
-///         Reader::from_file("/path/to/binary/protobuf.bin").expect("Cannot read input file");
-///
-///     // Use the generated module fns with the reader to convert your data into rust structs.
-///     //
-///     // Depending on your input file, the message can or not be prefixed with the encoded length
-///     // for instance, a *stream* which contains several messages generally split them using this
-///     // technique (see https://developers.google.com/protocol-buffers/docs/techniques#streaming)
-///     //
-///     // To read a message without a length prefix you can directly call `FooBar::from_reader`:
-///     // let foobar = reader.read(FooBar::from_reader).expect("Cannot read FooBar message");
-///     //
-///     // Else to read a length then a message, you can use:
-///     let foobar: FooBar = reader
-///         .read(|r, b| r.read_message(b))
-///         .expect("Cannot read FooBar message");
-///     // Reader::read_message uses `FooBar::from_reader` internally through the `MessageRead`
-///     // trait.
-///
-///     println!(
-///         "Found {} foos and {} bars!",
-///         foobar.foos.len(),
-///         foobar.bars.len()
-///     );
-/// }
-/// ```
-pub struct Reader {
-    buffer: Vec<u8>,
-    inner: BytesReader,
-}
-
-impl Reader {
-    /// Creates a new `Reader`
-    #[cfg(feature = "std")]
-    #[allow(clippy::uninit_vec)]
-    pub fn from_reader<R: Read>(
-        mut r: R,
-        capacity: usize,
-    ) -> Result<Reader> {
-        let mut buf = Vec::with_capacity(capacity);
-        unsafe {
-            buf.set_len(capacity);
-        }
-        buf.shrink_to_fit();
-        r.read_exact(&mut buf)?;
-        Ok(Reader::from_bytes(buf))
-    }
-
-    /// Creates a new `Reader` out of a file path
-    #[cfg(feature = "std")]
-    pub fn from_file<P: AsRef<Path>>(src: P) -> Result<Reader> {
-        let len = src.as_ref().metadata().unwrap().len() as usize;
-        let f = File::open(src)?;
-        Reader::from_reader(f, len)
-    }
-
-    /// Creates a new reader consuming the bytes
-    pub fn from_bytes(bytes: Vec<u8>) -> Reader {
-        let reader = BytesReader {
-            start: 0,
-            end: bytes.len(),
-        };
-        Reader {
-            buffer: bytes,
-            inner: reader,
-        }
-    }
-
-    /// Run a `BytesReader` dependent function
-    #[cfg_attr(feature = "std", inline)]
-    pub fn read<'a, M, F>(
-        &'a mut self,
-        mut read: F,
-    ) -> Result<M>
-    where
-        F: FnMut(&mut BytesReader, &'a [u8]) -> Result<M>,
-    {
-        read(&mut self.inner, &self.buffer)
-    }
-
-    /// Gets the inner `BytesReader`
-    pub fn inner(&mut self) -> &mut BytesReader {
-        &mut self.inner
-    }
-
-    /// Gets the buffer used internally
-    pub fn buffer(&self) -> &[u8] {
-        &self.buffer
-    }
-}
-
-// /// Deserialize a `MessageRead from a `&[u8]`
-// pub fn deserialize_from_slice_with_len_prefix<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
-//     let mut reader = BytesReader::from_bytes(bytes);
-//     reader.read_message::<M>(bytes)
-// }
-
 /// Deserialize a `MessageRead from a `&[u8]` without a length prefix
 pub fn decode<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
     let mut reader = BytesReader::from_bytes(&bytes);
     reader.read_message_without_len::<M>(&bytes)
-}
-
-/// Wrapper enum over packed fixed data, similar to `Cow`.
-///
-/// When we read packed fixed data, the raw bytes are often misaligned to the
-/// data type they represent. We don't want to have to align all the data before
-/// reading (especially if we're only accessing a few elements), as this
-/// involves lengthy allocations. This enum provides the `Borrowed` variant as a
-/// wrapper for such data, holding a reference to the (possibly) misaligned raw
-/// bytes and providing methods to read and iterate that are alignment-safe.
-///
-/// However, it is also convenient for the user to be able to use a
-/// `PackedFixed` variant that owns its own data (perhaps when setting the data
-/// themselves). It is mainly for this reason that the `Owned` variant is
-/// provided, which owns a `Vec<T>`.
-///
-/// One implementation detail is that the `Owned` variant is always aligned, so
-/// no use of `read_unaligned` is necessary. Methods are provided to convert
-/// from `Borrowed` to `Owned`, if it is found that it helps compiler
-/// optimization (not fully benchmarked at time of writing, seems
-/// temperamental).
-#[derive(Debug, Clone, Default)]
-pub enum PackedFixed<'a, T: Copy + PartialEq> {
-    /// Default when no data has been received yet; e.g. when just initialized.
-    #[default]
-    NoDataYet,
-    /// Variant that carries a reference to raw bytes that may or may not be
-    /// aligned, representing a packed set of fixed numbers.
-    ///
-    /// `PackedFixed` methods called on `Borrowed` will use `read_unaligned()`
-    /// to interact with the data without copying all bytes to an aligned buffer
-    /// in order to avoid delay from that memory allocation. So far, I can't
-    /// think of any way to take advantage of the situations when it is
-    /// coincidentally aligned.
-    Borrowed(&'a [u8]),
-    /// Variant that contains an owned vector of numbers.
-    Owned(Vec<T>),
-}
-
-impl<'a, T: Copy + PartialEq> PackedFixed<'a, T> {
-    /// Return the length of the DATA (not the bytes).
-    pub fn len(&self) -> usize {
-        match self {
-            PackedFixed::Borrowed(bytes) => bytes.len() / ::std::mem::size_of::<T>(),
-            PackedFixed::Owned(v) => v.len(),
-            PackedFixed::NoDataYet => 0,
-        }
-    }
-
-    /// Mutate in place to `Owned` variant. In the case of `Borrowed`, this
-    /// performs a bitwise copy of the entire slice.
-    pub fn own(&mut self) {
-        match self {
-            PackedFixed::NoDataYet => {
-                *self = PackedFixed::Owned(Vec::new());
-            }
-            PackedFixed::Borrowed(_) => {
-                *self = self.make_owned_variant_from_unaligned_buf();
-            }
-            PackedFixed::Owned(_) => {} // no-op for PackedFixed::Owned, just like Cow
-        }
-    }
-
-    /// Get a `Vec<T>` of the internal data, moving `self` in the process. The
-    /// reason we move `self` is so that calling this on an `Owned` variant
-    /// will not require copying data. `Borrowed` variants will trigger a
-    /// bitwise copy.
-    ///
-    /// It would be really nice if this could instead return `&[T]` without
-    /// moving `self`, but we can't do this for the `Borrowed` variant, so
-    /// we have no such method on `PackedFixed` as a whole. And anyway, this is
-    /// what `at()` on `Borrowed` is for.
-    pub fn into_vec(self) -> Vec<T> {
-        match self {
-            PackedFixed::NoDataYet => Vec::new(),
-            PackedFixed::Borrowed(_) => self.make_vec_from_unaligned_buf(),
-            PackedFixed::Owned(v) => v,
-        }
-    }
-
-    /// Get the element at index `index`.
-    ///
-    /// Note that `index` refers to the index of the type `T`, and NOT the byte
-    /// index. In the case of `Borrowed`, this index is calculated during
-    /// runtime, as if the underlying data was already in form `Vec<T>`.
-    pub fn at(
-        &self,
-        index: usize,
-    ) -> T {
-        match self {
-            PackedFixed::Borrowed(bytes) => {
-                let byte_offset = index * core::mem::size_of::<T>();
-                if byte_offset >= bytes.len() {
-                    panic!("PackedFixed::at(): Index out of range!");
-                }
-
-                let mut ptr = bytes.as_ptr();
-                unsafe {
-                    ptr = ptr.add(byte_offset);
-                    (ptr as *const T).read_unaligned()
-                }
-            }
-            PackedFixed::Owned(v) => v[index],
-            PackedFixed::NoDataYet => panic!("Cannot call at() on PackedFixed::NoDataYet!"),
-        }
-    }
-
-    /// Mutate `self` to `Owned` variant before returning immutable slice
-    pub fn to_slice(&mut self) -> &[T] {
-        self.own();
-        if let PackedFixed::Owned(ref contents) = *self {
-            contents
-        } else {
-            unreachable!();
-        }
-    }
-
-    /// Mutate `self` to `Owned` variant before returning mutable slice
-    pub fn to_mut_slice(&mut self) -> &mut [T] {
-        self.own();
-        if let PackedFixed::Owned(ref mut contents) = *self {
-            contents
-        } else {
-            unreachable!();
-        }
-    }
-
-    /// Returns `true` if no data is contained in the enum.
-    pub fn is_empty(&self) -> bool {
-        match self {
-            PackedFixed::NoDataYet => true,
-            PackedFixed::Borrowed(bytes) => bytes.is_empty(),
-            PackedFixed::Owned(contents) => contents.is_empty(),
-        }
-    }
-
-    // This method is private and mainly to avoid repetition in code.
-    fn make_vec_from_unaligned_buf(&self) -> Vec<T> {
-        match &self {
-            PackedFixed::Borrowed(bytes) => unsafe {
-                let src = bytes.as_ptr();
-                let mut buf = Vec::<T>::with_capacity(self.len());
-                let dst = buf.as_mut_ptr() as *mut u8;
-                ::std::ptr::copy(src, dst, bytes.len()); // careful to use length in bytes here
-                buf.set_len(self.len());
-                buf
-            },
-            _ => unreachable!(),
-        }
-    }
-
-    // This method is private and mainly to avoid repetition in code.
-    fn make_owned_variant_from_unaligned_buf(&self) -> Self {
-        match &self {
-            PackedFixed::Borrowed(_) => PackedFixed::Owned(self.make_vec_from_unaligned_buf()),
-            _ => unreachable!(),
-        }
-    }
-}
-
-/// Iterator over `PackedFixed`.
-pub struct PackedFixedIntoIter<'a, T: Copy + PartialEq> {
-    packed_fixed: PackedFixed<'a, T>,
-    index: usize,
-}
-
-impl<'a, T: Copy + PartialEq> FusedIterator for PackedFixedIntoIter<'a, T> {}
-
-impl<'a, T: Copy + PartialEq> Iterator for PackedFixedIntoIter<'a, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.packed_fixed.len() {
-            None
-        } else {
-            let res = Some(self.packed_fixed.at(self.index));
-            self.index += 1;
-            res
-        }
-    }
-}
-
-impl<'a, T: Copy + PartialEq> IntoIterator for PackedFixed<'a, T> {
-    type Item = T;
-
-    type IntoIter = PackedFixedIntoIter<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            packed_fixed: self,
-            index: 0,
-        }
-    }
-}
-
-/// Iterator over `&'a PackedFixed`. Note: This does NOT return references to
-/// the iterated elements (which is why we aren't following the convention of
-/// calling it `PackedFixedIter`), because:
-/// - Due to limitations of `read_unaligned()` (must always copy), we cannot get
-///   references to elements of the `Borrowed` variant
-/// - The only data types expected to be handled by `PackedFixed` are primitive
-///   numeral types anyway.
-///
-/// This is purely for convenience, so we can iterate over `&PackedFixed`
-/// without moving it.
-pub struct PackedFixedRefIter<'a, T: Copy + PartialEq> {
-    packed_fixed: &'a PackedFixed<'a, T>,
-    index: usize,
-}
-
-impl<'a, T: Copy + PartialEq> FusedIterator for PackedFixedRefIter<'a, T> {}
-
-impl<'a, T: Copy + PartialEq> Iterator for PackedFixedRefIter<'a, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.packed_fixed.len() {
-            None
-        } else {
-            let res = Some(self.packed_fixed.at(self.index));
-            self.index += 1;
-            res
-        }
-    }
-}
-
-impl<'a, T: Copy + PartialEq> IntoIterator for &'a PackedFixed<'a, T> {
-    type Item = T;
-
-    type IntoIter = PackedFixedRefIter<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            packed_fixed: self,
-            index: 0,
-        }
-    }
-}
-
-impl<'a, T: Copy + PartialEq, const N: usize> From<&'a [u8; N]> for PackedFixed<'a, T> {
-    fn from(value: &'a [u8; N]) -> Self {
-        Self::Borrowed(value)
-    }
-}
-
-impl<'a, T: Copy + PartialEq> From<&'a [u8]> for PackedFixed<'a, T> {
-    fn from(value: &'a [u8]) -> Self {
-        Self::Borrowed(value)
-    }
-}
-
-impl<'a, T: Copy + PartialEq> From<&'a Vec<u8>> for PackedFixed<'a, T> {
-    fn from(value: &'a Vec<u8>) -> Self {
-        Self::Borrowed(value)
-    }
-}
-
-impl<'a, T: Copy + PartialEq> From<Vec<T>> for PackedFixed<'a, T> {
-    fn from(value: Vec<T>) -> Self {
-        Self::Owned(value)
-    }
-}
-
-impl<'a, T: Copy + PartialEq> PartialEq for PackedFixed<'a, T> {
-    fn eq(
-        &self,
-        other: &Self,
-    ) -> bool {
-        self.into_iter().eq(other)
-    }
 }

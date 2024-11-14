@@ -1,11 +1,10 @@
 [package]
 authors = ["Raul Gherman"]
 description = """
-
 A pure Rust protobuf (de)serializer. Quack :)
+
 Initially forked from `https://github.com/tafia/quick-protobuf`,
 which unfortunately seems kinda abandoned... :/
-
 """
 documentation = "https://docs.rs/quack-protobuf"
 edition = "2021"
@@ -17,8 +16,7 @@ repository = "https://github.com/raul-gherman/quack-protobuf"
 version = "0.3.20241114"
 
 [dependencies]
-# byteorder = { version = "1.5.0", default-features = false }
-byteorder-lite = { version = "0.1.0", default-features = false }
+byteorder-lite = { version = "0.1.0" }
 
 [features]
 default = ["std"]
