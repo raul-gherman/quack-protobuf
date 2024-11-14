@@ -8,8 +8,6 @@
 //!
 //! It is advised, for convenience, to directly work with a `Reader`.
 
-use byteorder::*;
-
 #[cfg(feature = "std")]
 use std::borrow::ToOwned;
 #[cfg(feature = "std")]
@@ -30,6 +28,8 @@ use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
+use byteorder_lite::ByteOrder;
+use byteorder_lite::LE;
 
 use crate::errors::{Error, Result};
 use crate::message::MessageRead;
@@ -810,14 +810,14 @@ impl Reader {
     }
 }
 
-/// Deserialize a `MessageRead from a `&[u8]`
-pub fn deserialize_from_slice_with_len_prefix<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
-    let mut reader = BytesReader::from_bytes(bytes);
-    reader.read_message::<M>(bytes)
-}
+// /// Deserialize a `MessageRead from a `&[u8]`
+// pub fn deserialize_from_slice_with_len_prefix<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+//     let mut reader = BytesReader::from_bytes(bytes);
+//     reader.read_message::<M>(bytes)
+// }
 
 /// Deserialize a `MessageRead from a `&[u8]` without a length prefix
-pub fn deserialize_from_slice<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+pub fn decode<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
     let mut reader = BytesReader::from_bytes(&bytes);
     reader.read_message_without_len::<M>(&bytes)
 }

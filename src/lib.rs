@@ -3,7 +3,6 @@
 //! This reader is developed similarly to a pull reader
 
 #![deny(missing_docs)]
-// #![allow(dead_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod errors;
@@ -12,14 +11,11 @@ pub mod reader;
 pub mod sizeofs;
 pub mod writer;
 
-pub use crate::errors::{Error, Result};
-pub use crate::message::{MessageInfo, MessageRead, MessageWrite};
-pub use crate::reader::{
-    deserialize_from_slice, deserialize_from_slice_with_len_prefix, BytesReader, PackedFixed, PackedFixedIntoIter,
-    PackedFixedRefIter,
-};
-pub use crate::writer::{
-    serialize_into_slice, serialize_into_slice_with_len_prefix, BytesWriter, Writer, WriterBackend,
+pub use crate::{
+    errors::{Error, Result},
+    message::{MessageInfo, MessageRead, MessageWrite},
+    reader::{decode, BytesReader, PackedFixed, PackedFixedIntoIter, PackedFixedRefIter},
+    writer::{BytesWriter, Writer, WriterBackend},
 };
 
 #[cfg(feature = "std")]

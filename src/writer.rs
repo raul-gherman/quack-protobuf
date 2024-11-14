@@ -3,12 +3,10 @@
 use crate::errors::{Error, Result};
 use crate::message::MessageWrite;
 use crate::PackedFixed;
-
-extern crate byteorder;
-use self::byteorder::{ByteOrder, LittleEndian as LE};
+use byteorder_lite::{ByteOrder, LittleEndian as LE};
 
 #[cfg(feature = "std")]
-use self::byteorder::WriteBytesExt;
+use byteorder_lite::WriteBytesExt;
 
 /// A struct to write protobuf messages
 ///
@@ -427,39 +425,39 @@ pub fn serialize_into_vec<M: MessageWrite>(message: &M) -> Result<Vec<u8>> {
     Ok(v)
 }
 
-/// Serialize a `MessageWrite` into a byte slice
-pub fn serialize_into_slice_with_len_prefix<M: MessageWrite>(
-    message: &M,
-    out: &mut [u8],
-) -> Result<()> {
-    let len = message.get_size();
-    if out.len() < crate::sizeofs::sizeof_len(len) {
-        return Err(Error::OutputBufferTooSmall);
-    }
-    {
-        let mut writer = Writer::new(BytesWriter::new(out));
-        writer.write_message_with_len_prefix(message)?;
-    }
+// /// Serialize a `MessageWrite` into a byte slice
+// pub fn serialize_into_slice_with_len_prefix<M: MessageWrite>(
+//     message: &M,
+//     out: &mut [u8],
+// ) -> Result<()> {
+//     let len = message.get_size();
+//     if out.len() < crate::sizeofs::sizeof_len(len) {
+//         return Err(Error::OutputBufferTooSmall);
+//     }
+//     {
+//         let mut writer = Writer::new(BytesWriter::new(out));
+//         writer.write_message_with_len_prefix(message)?;
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-/// Serialize a `MessageWrite` into a byte slice without a length prefix
-pub fn serialize_into_slice<M: MessageWrite>(
-    message: &M,
-    out: &mut [u8],
-) -> Result<usize> {
-    let len = message.get_size();
-    if out.len() < len {
-        return Err(Error::OutputBufferTooSmall);
-    }
-    {
-        let mut writer = Writer::new(BytesWriter::new(out));
-        writer.write_message(message)?;
-    }
+// /// Serialize a `MessageWrite` into a byte slice without a length prefix
+// pub fn serialize_into_slice<M: MessageWrite>(
+//     message: &M,
+//     out: &mut [u8],
+// ) -> Result<usize> {
+//     let len = message.get_size();
+//     if out.len() < len {
+//         return Err(Error::OutputBufferTooSmall);
+//     }
+//     {
+//         let mut writer = Writer::new(BytesWriter::new(out));
+//         writer.write_message(message)?;
+//     }
 
-    Ok(len)
-}
+//     Ok(len)
+// }
 
 /// Writer backend abstraction
 pub trait WriterBackend {
@@ -722,64 +720,4 @@ impl<W: std::io::Write> WriterBackend for W {
     ) -> Result<()> {
         self.write_all(buf).map_err(|e| e.into())
     }
-}
-
-#[test]
-fn test_issue_222() {
-    // remember that `serialize_into_vec()` and `serialize_into_slice()` add a
-    // length prefix in addition to writing the message itself; important for
-    // when you look at the buffer sizes and errors thrown in this test
-
-    struct TestMsg {}
-
-    impl MessageWrite for TestMsg {
-        fn write_message<W: WriterBackend>(
-            &self,
-            w: &mut Writer<W>,
-        ) -> Result<()> {
-            let bytes = [0x08u8, 0x96u8, 0x01u8];
-            for b in bytes {
-                // use `write_u8()` in loop because some other functions have
-                // hidden writes (length prefixes etc.) inside them.
-                w.write_u8(b)?;
-            }
-            Ok(())
-        }
-
-        fn get_size(&self) -> usize {
-            3 // corresponding to `bytes` above
-        }
-    }
-
-    let msg = TestMsg {};
-    let v = serialize_into_vec(&msg).unwrap();
-    // We would really like to assert that the vector `v` WITHIN
-    // `serialize_into_vec()` does not get its capacity modified after
-    // initializion with `with_capacity()`, but the only way to do that would be
-    // to put an assert within `serialize_into_vec()` itself, which isn't a
-    // pattern seen in this project.
-    //
-    // Instead, we do this. If this check fails, it definitely means that the
-    // capacity setting in `serialize_into_vec()` is suboptimal, but passing
-    // doesn't guarantee that it is optimal.
-    assert_eq!(v.len(), v.capacity());
-
-    let mut buf_len_2 = vec![0x00u8, 0x00u8];
-    let mut buf_len_3 = vec![0x00u8, 0x00u8, 0x00u8];
-    let mut buf_len_4 = vec![0x00u8, 0x00u8, 0x00u8, 0x00u8];
-
-    assert!(matches!(
-        serialize_into_slice_with_len_prefix(&msg, buf_len_2.as_mut_slice()),
-        Err(Error::OutputBufferTooSmall)
-    ));
-    assert!(matches!(
-        // the salient case in issue 222; before bugfix this would have been
-        // Err(Error::UnexpectedEndOfBuffer)
-        serialize_into_slice_with_len_prefix(&msg, buf_len_3.as_mut_slice()),
-        Err(Error::OutputBufferTooSmall)
-    ));
-    assert!(matches!(
-        serialize_into_slice_with_len_prefix(&msg, buf_len_4.as_mut_slice()),
-        Ok(())
-    ));
 }
